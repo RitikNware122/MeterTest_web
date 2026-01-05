@@ -1,11 +1,20 @@
 import express from "express";
 import cors from "cors";
+import http from "http";
+import { Server } from "socket.io";
 import { publishGatewayCommand } from "./mqttservice.js";
+import { startSubscriber, devices } from "./subscriberService.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
+
+/* ---------- PUBLISHER (UNCHANGED) ---------- */
 app.post("/publish", (req, res) => {
   const { imei, amount, gateway } = req.body;
 
@@ -17,6 +26,25 @@ app.post("/publish", (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(3001, () => {
+/* ---------- GET LIVE DEVICES ---------- */
+app.get("/devices", (req, res) => {
+  res.json(devices);
+});
+
+/* ---------- SOCKET ---------- */
+io.on("connection", socket => {
+  console.log("🧩 Frontend connected");
+
+  // send all existing devices
+  Object.values(devices).forEach(d => {
+    socket.emit("device_update", d);
+  });
+});
+
+/* ---------- START SUBSCRIBER ---------- */
+startSubscriber(io);
+
+/* ---------- SERVER ---------- */
+server.listen(3001, () => {
   console.log("🚀 Backend running on http://localhost:3001");
 });
