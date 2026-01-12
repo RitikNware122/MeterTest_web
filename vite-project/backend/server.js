@@ -2,11 +2,17 @@ import express from "express";
 import cors from "cors";
 import http from "http";
 import { Server } from "socket.io";
+
 import {
   publishGatewayCommand,
   publishOtaUpdate
 } from "./mqttservice.js";
-import { startSubscriber, devices } from "./subscriberService.js";
+
+import {
+  startSubscriber,
+  devices,
+  resetDevices
+} from "./subscriberService.js";
 
 const app = express();
 app.use(cors());
@@ -17,7 +23,7 @@ const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-/* ---------- EXISTING GATEWAY SWITCH ---------- */
+/* ---------- GATEWAY SWITCH API ---------- */
 app.post("/publish", (req, res) => {
   const { imei, amount, gateway } = req.body;
 
@@ -29,7 +35,7 @@ app.post("/publish", (req, res) => {
   res.json({ success: true });
 });
 
-/* ---------- NEW OTA API ---------- */
+/* ---------- OTA API ---------- */
 app.post("/ota", (req, res) => {
   const { imei, amount, url, restart } = req.body;
 
@@ -47,24 +53,31 @@ app.post("/ota", (req, res) => {
   res.json({ success: true });
 });
 
-/* ---------- GET LIVE DEVICES ---------- */
+/* ---------- GET CURRENT STATUS ---------- */
 app.get("/devices", (req, res) => {
   res.json(devices);
 });
 
-/* ---------- SOCKET ---------- */
+/* ---------- SOCKET.IO ---------- */
 io.on("connection", socket => {
   console.log("🧩 Frontend connected");
 
+  // send current cached status
   Object.values(devices).forEach(d => {
     socket.emit("device_update", d);
   });
+
+  // 🔄 REFRESH FROM SUBSCRIBER UI
+  socket.on("refresh_status", () => {
+    resetDevices();
+    console.log("🔄 Status refresh requested by UI");
+  });
 });
 
-/* ---------- START SUBSCRIBER ---------- */
+/* ---------- START MQTT SUBSCRIBER ---------- */
 startSubscriber(io);
 
-/* ---------- SERVER ---------- */
+/* ---------- START SERVER ---------- */
 server.listen(3001, () => {
   console.log("🚀 Backend running on http://localhost:3001");
 });

@@ -1,21 +1,38 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
-const socket = io("http://localhost:3001");
+const SOCKET_URL = "http://localhost:3001";
 
 export default function Subscriber() {
   const [devices, setDevices] = useState({});
+  const socketRef = useRef(null);
 
+  /* ---------- CONNECT SOCKET ---------- */
   useEffect(() => {
-    socket.on("device_update", data => {
+    socketRef.current = io(SOCKET_URL);
+
+    socketRef.current.on("device_update", (data) => {
       setDevices(prev => ({
         ...prev,
         [data.device_id]: data
       }));
     });
 
-    return () => socket.off("device_update");
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, []);
+
+  /* ---------- REFRESH HANDLER ---------- */
+  const handleRefresh = () => {
+    // 1️⃣ Clear UI immediately
+    setDevices({});
+
+    // 2️⃣ Tell backend to reset device cache
+    socketRef.current.emit("refresh_status");
+  };
 
   const getSignalColor = (signal) => {
     if (signal >= 20) return "green";
@@ -25,31 +42,38 @@ export default function Subscriber() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.heading}>📡 Live Devices</h2>
+      {/* Header */}
+      <div style={styles.header}>
+        <h2 style={styles.heading}>📡 Live Devices</h2>
+
+        <button style={styles.refreshBtn} onClick={handleRefresh}>
+          🔄 Refresh
+        </button>
+      </div>
 
       {Object.values(devices).length === 0 && (
         <p style={styles.empty}>No devices online</p>
       )}
 
       <div style={styles.grid}>
-        {Object.values(devices).map(d => (
+        {Object.values(devices).map((d) => (
           <div key={d.device_id} style={styles.card}>
-            
-            {/* Header */}
+            {/* Card Header */}
             <div style={styles.cardHeader}>
               <span style={styles.imei}>📟 {d.device_id}</span>
 
               <span
                 style={{
                   ...styles.status,
-                  backgroundColor: d.device_status === "online" ? "#2ecc71" : "#e74c3c"
+                  backgroundColor:
+                    d.device_status === "online" ? "#2ecc71" : "#e74c3c"
                 }}
               >
                 {d.device_status?.toUpperCase()}
               </span>
             </div>
 
-            {/* Body */}
+            {/* Card Body */}
             <div style={styles.row}>
               <span>📶 Signal</span>
               <span style={{ color: getSignalColor(d.signal), fontWeight: "bold" }}>
@@ -81,7 +105,7 @@ export default function Subscriber() {
   );
 }
 
-/* ---------------- STYLES ---------------- */
+/* ---------- STYLES ---------- */
 
 const styles = {
   container: {
@@ -89,9 +113,26 @@ const styles = {
     maxWidth: 1200,
     margin: "auto"
   },
-  heading: {
-    textAlign: "center",
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 20
+  },
+  heading: {
+    margin: 0,
+    flex: 1,
+    textAlign: "center"
+  },
+  refreshBtn: {
+    padding: "8px 16px",
+    borderRadius: 6,
+    border: "none",
+    cursor: "pointer",
+    background: "linear-gradient(135deg, #dde7e2ff, #b39f74ff)",
+    color: "#fff",
+    fontSize: 14,
+    boxShadow: "0 3px 8px rgba(0,0,0,0.2)"
   },
   empty: {
     textAlign: "center",
@@ -106,8 +147,7 @@ const styles = {
     borderRadius: 10,
     background: "#ffffff",
     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-    padding: 15,
-    transition: "transform 0.2s",
+    padding: 15
   },
   cardHeader: {
     display: "flex",
