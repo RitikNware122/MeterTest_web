@@ -88,7 +88,16 @@ export default function Subscriber() {
 
             <div style={styles.row}>
               <span>⏱ Last Update</span>
-              <span>{new Date(d.last_seen).toLocaleTimeString()}</span>
+              <span>
+  {new Date(d.last_seen).toLocaleTimeString("en-US", {
+    timeZone: "UTC",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  })}
+</span>
+
             </div>
 
             {/* Gateway */}
