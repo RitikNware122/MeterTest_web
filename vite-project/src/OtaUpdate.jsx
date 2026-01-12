@@ -7,6 +7,7 @@ export default function OtaUpdate() {
   const [imei, setImei] = useState("");
   const [amount, setAmount] = useState("");
   const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const sendOta = async () => {
     if (!/^\d{15}$/.test(imei)) {
@@ -15,6 +16,8 @@ export default function OtaUpdate() {
     }
 
     try {
+      setLoading(true);
+
       const res = await fetch("http://localhost:3001/ota", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -29,6 +32,7 @@ export default function OtaUpdate() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "OTA failed");
 
+      /* ✅ Log */
       setLogs(prev => [
         {
           time: new Date().toLocaleTimeString(),
@@ -36,8 +40,15 @@ export default function OtaUpdate() {
         },
         ...prev
       ]);
+
+      /* ✅ CLEAR INPUTS AFTER OTA */
+      setImei("");
+      setAmount("");
+
     } catch (err) {
       alert(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,6 +63,7 @@ export default function OtaUpdate() {
           value={imei}
           onChange={e => setImei(e.target.value)}
           style={styles.input}
+          disabled={loading}
         />
 
         <input
@@ -59,11 +71,21 @@ export default function OtaUpdate() {
           value={amount}
           onChange={e => setAmount(e.target.value)}
           style={styles.input}
+          disabled={loading}
         />
       </div>
 
-      <button style={styles.button} onClick={sendOta}>
-        🚀 Trigger OTA Update
+      {/* Button */}
+      <button
+        style={{
+          ...styles.button,
+          opacity: loading ? 0.6 : 1,
+          cursor: loading ? "not-allowed" : "pointer"
+        }}
+        onClick={sendOta}
+        disabled={loading}
+      >
+        {loading ? "⏳ Sending OTA..." : "🚀 Trigger OTA Update"}
       </button>
 
       {/* Logs */}
@@ -109,7 +131,8 @@ const styles = {
     fontSize: 14
   },
   button: {
-    marginTop: 20,
+    margin: "20px auto",
+       marginTop: 20,
     width: "100%",
     background: "linear-gradient(135deg, #dde7e2ff, #b39f74ff)",
     border: "none",
