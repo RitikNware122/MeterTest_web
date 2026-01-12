@@ -26,6 +26,7 @@ client.on("error", err => {
   console.error("❌ MQTT Error:", err);
 });
 
+/* ---------------- GATEWAY SWITCH ---------------- */
 export function publishGatewayCommand(imei, amount, gatewayHex) {
   const topic = `gateway/${imei}`;
 
@@ -33,15 +34,29 @@ export function publishGatewayCommand(imei, amount, gatewayHex) {
     type: "gatewaySwitch",
     amt: amount,
     txn_id: Date.now().toString(),
-    lang: "eng",
-    url: "https://bizintuit.in/soundbox/sounds_nextpay.czip",
-    restart: true,
-    lang_support: "eng",
     gateway: gatewayHex
   };
 
-  console.log("📤 Publishing to:", topic);
-  console.log("📦 Payload:", payload);
+  console.log("📤 Gateway Switch →", topic);
+  client.publish(topic, JSON.stringify(payload), { qos: 1 });
+}
+
+/* ---------------- OTA UPDATE ---------------- */
+export function publishOtaUpdate(imei, amount, otaUrl, restart = true) {
+  const topic = `gateway/${imei}`;
+
+  const payload = {
+    type: "otaUpdate",
+    amt: amount,
+    txn_id: Date.now().toString(),
+    lang: "eng",
+    url: otaUrl,
+    restart: restart,
+    lang_support: "eng"
+  };
+
+  console.log("📤 OTA Update →", topic);
+  console.log("📦 OTA Payload:", payload);
 
   client.publish(topic, JSON.stringify(payload), { qos: 1 });
 }
