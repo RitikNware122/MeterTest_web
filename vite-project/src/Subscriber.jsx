@@ -5,6 +5,7 @@ const SOCKET_URL = "http://localhost:3001";
 
 export default function Subscriber() {
   const [devices, setDevices] = useState({});
+  const [search, setSearch] = useState("");
   const socketRef = useRef(null);
 
   /* ---------- CONNECT SOCKET ---------- */
@@ -12,7 +13,7 @@ export default function Subscriber() {
     socketRef.current = io(SOCKET_URL);
 
     socketRef.current.on("device_update", (data) => {
-      setDevices(prev => ({
+      setDevices((prev) => ({
         ...prev,
         [data.device_id]: data
       }));
@@ -27,10 +28,11 @@ export default function Subscriber() {
 
   /* ---------- REFRESH HANDLER ---------- */
   const handleRefresh = () => {
-    // 1️⃣ Clear UI immediately
+    // Clear UI
     setDevices({});
+    setSearch("");
 
-    // 2️⃣ Tell backend to reset device cache
+    // Notify backend
     socketRef.current.emit("refresh_status");
   };
 
@@ -39,6 +41,12 @@ export default function Subscriber() {
     if (signal >= 10) return "orange";
     return "red";
   };
+
+  /* ---------- FILTERED DEVICES ---------- */
+  const filteredDevices = Object.values(devices).filter((d) =>
+    d.device_id.toLowerCase().includes(search.toLowerCase()) ||
+    d.device_status?.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div style={styles.container}>
@@ -51,12 +59,21 @@ export default function Subscriber() {
         </button>
       </div>
 
-      {Object.values(devices).length === 0 && (
-        <p style={styles.empty}>No devices online</p>
+      {/* Search Bar */}
+      <input
+        type="text"
+        placeholder="🔍 Search by Device ID or Status..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={styles.search}
+      />
+
+      {filteredDevices.length === 0 && (
+        <p style={styles.empty}>No devices found</p>
       )}
 
       <div style={styles.grid}>
-        {Object.values(devices).map((d) => (
+        {filteredDevices.map((d) => (
           <div key={d.device_id} style={styles.card}>
             {/* Card Header */}
             <div style={styles.cardHeader}>
@@ -76,7 +93,12 @@ export default function Subscriber() {
             {/* Card Body */}
             <div style={styles.row}>
               <span>📶 Signal</span>
-              <span style={{ color: getSignalColor(d.signal), fontWeight: "bold" }}>
+              <span
+                style={{
+                  color: getSignalColor(d.signal),
+                  fontWeight: "bold"
+                }}
+              >
                 {d.signal}
               </span>
             </div>
@@ -89,15 +111,13 @@ export default function Subscriber() {
             <div style={styles.row}>
               <span>⏱ Last Update</span>
               <span>
-  {new Date(d.last_seen).toLocaleTimeString("en-IN", {
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: true
-})
-}
-</span>
-
+                {new Date(d.last_seen).toLocaleTimeString("en-IN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true
+                })}
+              </span>
             </div>
 
             {/* Gateway */}
@@ -143,6 +163,19 @@ const styles = {
     fontSize: 14,
     boxShadow: "0 3px 8px rgba(0,0,0,0.2)"
   },
+search: {
+  width: "100%",
+  maxWidth: 800,
+  padding: "8px 12px",
+  borderRadius: 6,
+  border: "1px solid #ccc",
+  margin: "0 auto 20px auto", // 👈 center horizontally
+  fontSize: 13,
+  outline: "none",
+  display: "block",
+  boxShadow: "0 2px 5px rgba(0,0,0,0.08)"
+},
+
   empty: {
     textAlign: "center",
     color: "#777"
